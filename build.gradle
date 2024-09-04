@@ -1,0 +1,85 @@
+plugins {
+    id 'java'
+    id 'io.freefair.lombok' version '6.5.0.3'
+    id 'org.springframework.boot' version '3.3.2' apply false
+    id 'io.spring.dependency-management' version '1.1.6'
+    id 'com.adarshr.test-logger' version '3.2.0'
+}
+
+group = 'pu.jpa'
+version = '1.0.0'
+java {
+    sourceCompatibility = '17'
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencyManagement {
+    imports {
+        mavenBom org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES
+    }
+}
+
+dependencies {
+
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
+    implementation 'org.springframework:spring-context-support:6.1.10'
+//    implementation 'org.springframework.data:spring-data-jpa'
+//    implementation 'jakarta.persistence:jakarta.persistence-api:3.2.0'
+    // https://mvnrepository.com/artifact/javax.persistence/javax.persistence-api
+//    implementation 'javax.persistence:javax.persistence-api:2.2'
+
+
+
+    implementation 'javax.validation:validation-api:2.0.1.Final'
+
+    def jacksonVersion = "2.15.3"
+    implementation "com.fasterxml.jackson.core:jackson-core:$jacksonVersion"
+    implementation "com.fasterxml.jackson.core:jackson-databind:$jacksonVersion"
+    implementation "com.fasterxml.jackson.core:jackson-annotations:$jacksonVersion"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-json-org:$jacksonVersion"
+
+//    runtimeOnly 'com.h2database:h2-mvstore:2.3.230'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.2'
+
+    def springVersion = "3.3.2"
+//    testImplementation "org.springframework.boot:spring-boot-configuration-processor:$springVersion"
+////    testImplementation "org.springframework.boot:spring-boot-starter-websocket:$springVersion"
+////    testImplementation "org.springframework.boot:spring-boot-starter-security:$springVersion"
+    testImplementation "org.springframework.boot:spring-boot-starter-test:$springVersion"
+//    testImplementation "org.springframework.boot:spring-boot-starter-tomcat:$springVersion"
+//    testImplementation "org.springframework.boot:spring-boot-starter-data-jpa:$springVersion"
+//    testImplementation "org.springframework:spring-context-support:$springVersion"
+//    testImplementation "org.springframework.boot:spring-boot-configuration-processor"
+
+    runtimeOnly 'org.postgresql:postgresql:42.6.0'
+
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+//    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+}
+
+tasks.register('runTest') {
+//    dependsOn 'bootRun'
+    bootRun.systemProperty('spring.profiles.active', 'test')
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs.add("-parameters")
+}
+test {
+    useJUnitPlatform()
+}

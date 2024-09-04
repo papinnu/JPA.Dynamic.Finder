@@ -1,0 +1,26 @@
+spring:
+#  datasource:
+#    url: jdbc:tc:postgresql:postgres:jpadynamicqb
+##    url: jdbc:tc:postgresql:11.1:///integration-tests-db
+#    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+#    jpa:
+#      hibernate:
+#        ddl-auto: create
+  jpa:
+    show-sql: true
+    generate-ddl: true
+    properties:
+      hibernate:
+        format_sql: true
+  sql:
+    init:
+      mode: always
+  test:
+    database:
+      replace: none
+
+application:
+  jpa:
+    dynamic-query:
+      pagination:
+        pageSize: 20
