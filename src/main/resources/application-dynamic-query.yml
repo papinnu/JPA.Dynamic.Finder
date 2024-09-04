@@ -1,0 +1,6 @@
+
+application:
+  jpa:
+    dynamic-query:
+      pagination:
+        pageSize: 20
