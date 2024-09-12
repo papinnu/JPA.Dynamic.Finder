@@ -4,7 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import jakarta.persistence.criteria.CriteriaBuilder;
-import pu.jpa.dynamicquery.model.projection.Projection;
+import pu.jpa.dynamicquery.api.Projection;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Root;

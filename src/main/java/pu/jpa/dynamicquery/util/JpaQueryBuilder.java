@@ -25,7 +25,8 @@ import org.springframework.util.CollectionUtils;
 import pu.jpa.dynamicquery.api.Sortable;
 import pu.jpa.dynamicquery.configuration.PaginationRecord;
 import pu.jpa.dynamicquery.model.filter.Pagination;
-import pu.jpa.dynamicquery.model.projection.Projection;
+import pu.jpa.dynamicquery.api.Projection;
+import pu.jpa.dynamicquery.model.specification.SearchSpecification;
 
 /**
  * @author Plamen Uzunov
@@ -40,7 +41,16 @@ public class JpaQueryBuilder {
     @Getter
     private PaginationRecord pagingRecord;
 
-    public <E, R extends Projection> Page<R> getPage(@Nonnull TypedQuery<R> query,
+    public <E, R extends Projection> Page<R> getPagedData(@Nonnull Class<E> domainClass,
+                                                          @Nonnull Class<R> resultClass,
+                                                          @Nonnull Pagination paging) {
+        Specification<E> specification = new SearchSpecification<>(domainClass, paging.getFilter());
+        PageRequest request = getPageRequest(paging);
+        TypedQuery<R> typedQuery = getTypedQuery(specification, domainClass, resultClass, request.getSort());
+        return request.isUnpaged() ? new PageImpl<>(typedQuery.getResultList()) : getPage(typedQuery, domainClass, request, specification);
+    }
+
+    private <E, R extends Projection> Page<R> getPage(@Nonnull TypedQuery<R> query,
                                                      @Nonnull Class<E> domainClass,
                                                      @Nonnull Pageable pageable,
                                                      @Nonnull Specification<E> spec) {
@@ -51,7 +61,7 @@ public class JpaQueryBuilder {
         return PageableExecutionUtils.getPage(query.getResultList(), pageable, () -> executeCountQuery(getCountQuery(spec, domainClass)));
     }
 
-    public long executeCountQuery(@Nonnull TypedQuery<Long> countQuery) {
+    private long executeCountQuery(@Nonnull TypedQuery<Long> countQuery) {
         List<Long> totals = countQuery.getResultList();
         long total = 0L;
         for (Long element : totals) {
@@ -78,16 +88,7 @@ public class JpaQueryBuilder {
         return PageRequest.of(paging.getPage(), paging.getPageSize(), sort);
     }
 
-    public <E, R extends Projection> Page<R> getPagedData(@Nonnull Class<E> domainClass,
-                                                          @Nonnull Class<R> resultClass,
-                                                          @Nonnull Specification<E> specification,
-                                                          @Nonnull Pagination paging) {
-        PageRequest request = getPageRequest(paging);
-        TypedQuery<R> typedQuery = getTypedQuery(specification, domainClass, resultClass, request.getSort());
-        return request.isUnpaged() ? new PageImpl<>(typedQuery.getResultList()) : getPage(typedQuery, domainClass, request, specification);
-    }
-
-    public <E, R extends Projection> TypedQuery<R> getTypedQuery(@Nonnull Specification<E> spec,
+    private <E, R extends Projection> TypedQuery<R> getTypedQuery(@Nonnull Specification<E> spec,
                                                                  @Nonnull Class<E> domainClass,
                                                                  @Nonnull Class<R> resultClass,
                                                                  @Nonnull org.springframework.data.domain.Sort sort) {
@@ -100,7 +101,7 @@ public class JpaQueryBuilder {
         return entityManager.createQuery(typedQuery);
     }
 
-    protected <E> TypedQuery<Long> getCountQuery(@Nonnull Specification<E> spec, @Nonnull Class<E> domainClass) {
+    private <E> TypedQuery<Long> getCountQuery(@Nonnull Specification<E> spec, @Nonnull Class<E> domainClass) {
         CriteriaBuilder builder = entityManager.getCriteriaBuilder();
         CriteriaQuery<Long> query = builder.createQuery(Long.class);
         Root<E> root = query.from(domainClass);

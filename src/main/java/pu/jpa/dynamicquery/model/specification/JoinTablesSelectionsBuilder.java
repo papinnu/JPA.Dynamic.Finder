@@ -25,7 +25,7 @@ import pu.jpa.dynamicquery.annotation.SQLFunction;
 import pu.jpa.dynamicquery.annotation.SelectionIn;
 import pu.jpa.dynamicquery.api.Condition;
 import pu.jpa.dynamicquery.api.Expression;
-import pu.jpa.dynamicquery.model.projection.Projection;
+import pu.jpa.dynamicquery.api.Projection;
 
 /**
  * @author Plamen Uzunov
