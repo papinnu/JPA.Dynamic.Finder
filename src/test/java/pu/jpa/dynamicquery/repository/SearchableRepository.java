@@ -1,6 +1,6 @@
 package pu.jpa.dynamicquery.repository;
 
-import pu.jpa.dynamicquery.model.projection.Projection;
+import pu.jpa.dynamicquery.api.Projection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

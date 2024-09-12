@@ -12,7 +12,7 @@ import jakarta.persistence.criteria.Root;
 import lombok.Data;
 import org.springframework.data.jpa.domain.Specification;
 import pu.jpa.dynamicquery.api.Expression;
-import pu.jpa.dynamicquery.model.projection.Projection;
+import pu.jpa.dynamicquery.api.Projection;
 
 /**
  * @author Plamen Uzunov

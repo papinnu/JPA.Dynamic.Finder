@@ -1,4 +1,4 @@
-package pu.jpa.dynamicquery.model.projection;
+package pu.jpa.dynamicquery.api;
 
 /**
  * @author Plamen Uzunov

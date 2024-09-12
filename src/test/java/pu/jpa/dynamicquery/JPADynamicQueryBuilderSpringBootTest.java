@@ -29,6 +29,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.utility.TestcontainersConfiguration;
 import pu.jpa.dynamicquery.api.ComparisonOperator;
 import pu.jpa.dynamicquery.api.LogicalOperator;
+import pu.jpa.dynamicquery.api.Projection;
 import pu.jpa.dynamicquery.api.SortType;
 import pu.jpa.dynamicquery.api.Sortable;
 import pu.jpa.dynamicquery.model.entity.Product;
@@ -39,8 +40,6 @@ import pu.jpa.dynamicquery.model.filter.Filter;
 import pu.jpa.dynamicquery.model.filter.Pagination;
 import pu.jpa.dynamicquery.model.filter.SimpleExpression;
 import pu.jpa.dynamicquery.model.projection.ProductProjection;
-import pu.jpa.dynamicquery.model.projection.Projection;
-import pu.jpa.dynamicquery.model.specification.SearchSpecification;
 import pu.jpa.dynamicquery.repository.ProductsRepository;
 import pu.jpa.dynamicquery.repository.SearchableRepository;
 import pu.jpa.dynamicquery.util.JpaQueryBuilder;
@@ -48,27 +47,12 @@ import pu.jpa.dynamicquery.util.JpaQueryBuilder;
 /**
  * @author Plamen Uzunov
  */
-//@SpringBootTest(classes = {JpaQueryBuilder.class})
-//@ComponentScan(basePackages = {"pu.jpa.dynamicquery",
-//                                "pu.jpa.dynamicquery.configuration",
-//                                "pu.jpa.dynamicquery.repository",
-//                                "pu.jpa.dynamicquery.model.entity",
-//                                "pu.jpa.dynamicquery.model.projection",
-//                                "pu.jpa.dynamicquery.model.specification"},
-//                basePackageClasses= {JpaQueryBuilder.class, ProductsRepository.class}
-//)
 @ConfigurationPropertiesScan
-//@AutoConfigureTestEntityManager
 @Transactional
 @ContextConfiguration(classes = {JpaQueryBuilder.class})
-//@DataJpaTest
 @EnableAutoConfiguration
-//@AutoConfigureWebTestClient
-//@EnableJpaRepositories(basePackageClasses = {ProductsRepository.class, SearchableRepository.class, SubstancesRepository.class})
-//@EnableConfigurationProperties({PaginationRecord.class})
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @TestPropertySource(locations = "classpath:application-tc.yml")
-//@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("tc")
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest
@@ -80,23 +64,17 @@ public class JPADynamicQueryBuilderSpringBootTest {
     @Autowired
     private EntityManager entityManager;
 
-//    @Autowired
-//    private  TestEntityManager entityManager;
-
-    @Autowired
-    private ProductsRepository productsRepository;
+    private final ProductsRepository productsRepository;
 
     @Container
-//    @ClassRule
     private static final PostgreSQLContainer<TestPostgreSqlContainer> postgresqlContainer =
         TestPostgreSqlContainer.getInstance();
 
-//    @Autowired
-//    public JPADynamicQueryBuilderSpringBootTest(JpaQueryBuilder jpaQueryBuilder, ProductsRepository productsRepository, TestEntityManager entityManager) {
-//        this.jpaQueryBuilder = jpaQueryBuilder;
-//        this.productsRepository = productsRepository;
-//        this.entityManager = entityManager;
-//    }
+    @Autowired
+    public JPADynamicQueryBuilderSpringBootTest(JpaQueryBuilder jpaQueryBuilder, ProductsRepository productsRepository) {
+        this.jpaQueryBuilder = jpaQueryBuilder;
+        this.productsRepository = productsRepository;
+    }
 
     @Transactional
     @BeforeEach
@@ -116,7 +94,6 @@ public class JPADynamicQueryBuilderSpringBootTest {
         product = new Product("Nurofen", "Nurofen forte", LocalDate.now(), substance);
         entityManager.persist(product);
         entityManager.flush();
-
     }
 
     @AfterEach
@@ -157,8 +134,7 @@ public class JPADynamicQueryBuilderSpringBootTest {
 
     private <V extends Projection, E> Page<V> search(Pagination pagination, Class<E> entityClass, Class<V> viewClass, SearchableRepository<V> repository) {
         if (pagination.getFilter() != null) {
-            SearchSpecification<E, V> specification = new SearchSpecification<>(entityClass, pagination.getFilter());
-            return jpaQueryBuilder.getPagedData(entityClass, viewClass, specification, pagination);
+            return jpaQueryBuilder.getPagedData(entityClass, viewClass, pagination);
         } else {
             PageRequest pageReq = buildPageRequest(pagination);
             return repository.search(pageReq);
@@ -173,4 +149,5 @@ public class JPADynamicQueryBuilderSpringBootTest {
         }
         return PageRequest.of(pagination.getPage(), pagination.getPageSize(), Sort.by(orders));
     }
+
 }
