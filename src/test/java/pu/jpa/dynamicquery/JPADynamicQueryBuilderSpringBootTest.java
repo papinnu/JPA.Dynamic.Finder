@@ -28,6 +28,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.utility.TestcontainersConfiguration;
 import pu.jpa.dynamicquery.api.ComparisonOperator;
+import pu.jpa.dynamicquery.api.Expression;
 import pu.jpa.dynamicquery.api.LogicalOperator;
 import pu.jpa.dynamicquery.api.Projection;
 import pu.jpa.dynamicquery.api.SortType;
@@ -114,14 +115,14 @@ public class JPADynamicQueryBuilderSpringBootTest {
         substanceNameFilter.setName("substance.description");
         substanceNameFilter.setValue("acid");
         substanceNameFilter.setOperator(ComparisonOperator.CONTAINS);
-        SimpleExpression substanceDescExpression = new SimpleExpression(substanceNameFilter);
+        Expression substanceDescExpression = new SimpleExpression(substanceNameFilter);
 
         Filter<String> productNameFilter = new Filter<>();
         productNameFilter.setName("name");
         productNameFilter.setValue("rin");
         productNameFilter.setOperator(ComparisonOperator.ENDS_WITH);
         SimpleExpression productNameExpression = new SimpleExpression(productNameFilter);
-        AbstractExpression expression = new CompositeExpression(LogicalOperator.AND, List.of(substanceDescExpression, productNameExpression));
+        Expression expression = new CompositeExpression(LogicalOperator.AND, List.of(substanceDescExpression, productNameExpression));
 
         Pagination pagination = new Pagination();
         pagination.setFilter(expression);

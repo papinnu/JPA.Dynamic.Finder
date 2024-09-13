@@ -20,14 +20,14 @@ by code :
  substanceNameFilter.setName("substance.description");
  substanceNameFilter.setValue("acid");
  substanceNameFilter.setOperator(ComparisonOperator.CONTAINS);
- SimpleExpression substanceDescExpression = new SimpleExpression(substanceNameFilter);
+ Expression substanceDescExpression = new SimpleExpression(substanceNameFilter);
 
  Filter<String> productNameFilter = new Filter<>();
  productNameFilter.setName("name");
  productNameFilter.setValue("rin");
  productNameFilter.setOperator(ComparisonOperator.ENDS_WITH);
  SimpleExpression productNameExpression = new SimpleExpression(productNameFilter);
- AbstractExpression expression = new CompositeExpression(LogicalOperator.AND, List.of(substanceDescExpression, productNameExpression));
+ Expression expression = new CompositeExpression(LogicalOperator.AND, List.of(substanceDescExpression, productNameExpression));
 
  Pagination pagination = new Pagination();
  pagination.setFilter(expression);
