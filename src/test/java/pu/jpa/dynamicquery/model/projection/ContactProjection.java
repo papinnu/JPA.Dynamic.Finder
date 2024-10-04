@@ -5,7 +5,5 @@ import pu.jpa.dynamicquery.api.Projection;
 /**
  * @author Plamen Uzunov
  */
-
-public record NameProjection(long id, String name) implements Projection {
-
+public record ContactProjection(long contactId, String contactName, String type,  String contactVal) implements Projection {
 }

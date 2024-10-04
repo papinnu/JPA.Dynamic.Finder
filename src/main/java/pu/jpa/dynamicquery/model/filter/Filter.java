@@ -15,8 +15,6 @@ import lombok.Setter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static pu.jpa.dynamicquery.util.StringUtil.objectFromString;
-
 /**
  * Simple condition implementation to build a Predicate JPA API instance from the defined logical operation
  * and the required values for it.
@@ -37,6 +35,7 @@ public class Filter<C extends Comparable<C>> extends AbstractCondition<C> {
     protected C secondValue;
 
     @SuppressWarnings("unchecked")
+    @Override
     public Predicate toPredicate(@Nonnull CriteriaBuilder criteriaBuilder,
                                  @Nonnull Root<?> root,
                                  @Nullable Map<String, Join<Object, Object>> attributeToJoin) {
@@ -99,10 +98,6 @@ public class Filter<C extends Comparable<C>> extends AbstractCondition<C> {
             return criteriaBuilder.like(criteriaBuilder.lower(expression), criteriaBuilder.lower(criteriaBuilder.literal("%" + value)));
         }
         throw new IllegalArgumentException("The 'Ends with' operator supports only consecutive character values. [Java type:" + expression.getJavaType() + " | value:" + value);
-    }
-
-    private C createVal(String strVal, Class<C> clazz) {
-        return (strVal != null && !strVal.isBlank()) ? objectFromString(clazz, strVal) : null;
     }
 
 }
