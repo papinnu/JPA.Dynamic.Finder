@@ -12,6 +12,8 @@ import lombok.Setter;
 import pu.jpa.dynamicquery.api.ComparisonOperator;
 import pu.jpa.dynamicquery.api.Condition;
 
+import static pu.jpa.dynamicquery.util.StringUtil.objectFromString;
+
 /**
  * @author Plamen Uzunov
  */
@@ -58,6 +60,10 @@ public abstract class AbstractCondition<V> implements Condition<V> {
             expression = root.get(getName());
         }
         return expression;
+    }
+
+    protected V createVal(String strVal, Class<V> clazz) {
+        return (strVal != null && !strVal.isBlank()) ? objectFromString(clazz, strVal) : null;
     }
 
 }

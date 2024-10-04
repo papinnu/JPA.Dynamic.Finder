@@ -54,6 +54,6 @@ public @interface SQLFunction {
      *
      * @return the column's expression which will be used by this function
      */
-    String[] expressions();
+    String[] expressions() default {};
 
 }

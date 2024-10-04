@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Getter;
 import lombok.Setter;
 import pu.jpa.dynamicquery.api.Expression;
+import pu.jpa.dynamicquery.api.LogicalOperator;
 import pu.jpa.dynamicquery.api.Pageable;
 import pu.jpa.dynamicquery.api.Sortable;
 import pu.jpa.dynamicquery.util.ExpressionDeserializer;
@@ -33,7 +34,7 @@ public class Pagination implements Pageable {
 
     @Min(0)
     @JsonProperty("number")
-    private int page = 0;
+    private int page = 0; // first page - starting from 0 (zero)
 
     @Min(1)
     @JsonProperty("size")
@@ -41,5 +42,12 @@ public class Pagination implements Pageable {
 
     @JsonProperty("sort")
     private List<Sortable> sort;
+
+    public Expression getFilterAndCreateIfAbsent(LogicalOperator operator) {
+        if (filter == null) {
+            filter = new CompositeExpression(operator);
+        }
+        return filter;
+    }
 
 }

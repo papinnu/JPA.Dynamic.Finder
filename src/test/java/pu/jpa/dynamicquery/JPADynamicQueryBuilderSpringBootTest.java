@@ -1,11 +1,17 @@
 package pu.jpa.dynamicquery;
 
-import java.time.LocalDate;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import jakarta.persistence.EntityManager;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,17 +39,21 @@ import pu.jpa.dynamicquery.api.LogicalOperator;
 import pu.jpa.dynamicquery.api.Projection;
 import pu.jpa.dynamicquery.api.SortType;
 import pu.jpa.dynamicquery.api.Sortable;
-import pu.jpa.dynamicquery.model.entity.Product;
-import pu.jpa.dynamicquery.model.entity.Substance;
-import pu.jpa.dynamicquery.model.filter.AbstractExpression;
+import pu.jpa.dynamicquery.model.entity.Customer;
 import pu.jpa.dynamicquery.model.filter.CompositeExpression;
 import pu.jpa.dynamicquery.model.filter.Filter;
 import pu.jpa.dynamicquery.model.filter.Pagination;
 import pu.jpa.dynamicquery.model.filter.SimpleExpression;
-import pu.jpa.dynamicquery.model.projection.ProductProjection;
-import pu.jpa.dynamicquery.repository.ProductsRepository;
+import pu.jpa.dynamicquery.model.projection.CustomerWithCount;
+import pu.jpa.dynamicquery.repository.CustomersRepository;
 import pu.jpa.dynamicquery.repository.SearchableRepository;
+import pu.jpa.dynamicquery.util.ExpressionDeserializer;
 import pu.jpa.dynamicquery.util.JpaQueryBuilder;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 
 /**
  * @author Plamen Uzunov
@@ -62,39 +72,26 @@ public class JPADynamicQueryBuilderSpringBootTest {
     @Autowired
     private JpaQueryBuilder jpaQueryBuilder;
 
-    @Autowired
-    private EntityManager entityManager;
+    private final CustomersRepository customersRepository;
 
-    private final ProductsRepository productsRepository;
+    private ObjectMapper mapper;
+    private ExpressionDeserializer deserializer;
 
     @Container
     private static final PostgreSQLContainer<TestPostgreSqlContainer> postgresqlContainer =
         TestPostgreSqlContainer.getInstance();
 
     @Autowired
-    public JPADynamicQueryBuilderSpringBootTest(JpaQueryBuilder jpaQueryBuilder, ProductsRepository productsRepository) {
+    public JPADynamicQueryBuilderSpringBootTest(JpaQueryBuilder jpaQueryBuilder, CustomersRepository customersRepository) {
         this.jpaQueryBuilder = jpaQueryBuilder;
-        this.productsRepository = productsRepository;
+        this.customersRepository = customersRepository;
     }
 
     @Transactional
     @BeforeEach
     void setUp() {
-        Substance substance = new Substance("Acetylsalicylic acid", "Acetylsalicylic acid (ASA) 100 mg/l");
-        entityManager.persist(substance);
-        entityManager.flush();
-
-        Product product = new Product("Aspirin", "Aspirin protect", LocalDate.now(), substance);
-        entityManager.persist(product);
-        entityManager.flush();
-
-        substance = new Substance("Ibuprofen", "Isobutylphenylpropionic acid");
-        entityManager.persist(substance);
-        entityManager.flush();
-
-        product = new Product("Nurofen", "Nurofen forte", LocalDate.now(), substance);
-        entityManager.persist(product);
-        entityManager.flush();
+        mapper = new ObjectMapper();
+        deserializer = new ExpressionDeserializer();
     }
 
     @AfterEach
@@ -110,27 +107,49 @@ public class JPADynamicQueryBuilderSpringBootTest {
 
     @Transactional
     @Test
-    void testQueryBuilder() {
-        Filter<String> substanceNameFilter = new Filter<>();
-        substanceNameFilter.setName("substance.description");
-        substanceNameFilter.setValue("acid");
-        substanceNameFilter.setOperator(ComparisonOperator.CONTAINS);
-        Expression substanceDescExpression = new SimpleExpression(substanceNameFilter);
+    void testCustomersAPI() {
+        Filter<String> contactNameFilter = new Filter<>();
+        contactNameFilter.setName("contacts.name");
+        contactNameFilter.setValue("a");
+        contactNameFilter.setOperator(ComparisonOperator.CONTAINS);
+        Expression contactNameExpression = new SimpleExpression(contactNameFilter);
 
-        Filter<String> productNameFilter = new Filter<>();
-        productNameFilter.setName("name");
-        productNameFilter.setValue("rin");
-        productNameFilter.setOperator(ComparisonOperator.ENDS_WITH);
-        SimpleExpression productNameExpression = new SimpleExpression(productNameFilter);
-        Expression expression = new CompositeExpression(LogicalOperator.AND, List.of(substanceDescExpression, productNameExpression));
+        Filter<String> customerNameFilter = new Filter<>();
+        customerNameFilter.setName("name");
+        customerNameFilter.setValue("ltd.");
+        customerNameFilter.setOperator(ComparisonOperator.ENDS_WITH);
+        SimpleExpression productNameExpression = new SimpleExpression(customerNameFilter);
+        Expression expression = new CompositeExpression(LogicalOperator.AND, List.of(contactNameExpression, productNameExpression));
 
         Pagination pagination = new Pagination();
         pagination.setFilter(expression);
         pagination.setSort(List.of(new pu.jpa.dynamicquery.model.filter.Sort("name", SortType.ASC)));
 
-        Page<ProductProjection> page = search(pagination, Product.class, ProductProjection.class, productsRepository);
-        List<ProductProjection> results = page.getContent();
-        Assertions.assertEquals(1, results.size());
+        Page<CustomerWithCount> page = search(pagination, Customer.class, CustomerWithCount.class, customersRepository);
+        List<CustomerWithCount> results = page.getContent();
+        Assertions.assertEquals(4, results.size());
+    }
+
+    @Transactional
+    @Test
+    void testCustomersJsonPayload() {
+        Pagination pagination = deserialisePagination(getCustomerSearchJsonStream());
+        assertNotNull(pagination);
+
+        Page<CustomerWithCount> page = search(pagination, Customer.class, CustomerWithCount.class, customersRepository);
+        List<CustomerWithCount> results = page.getContent();
+        Assertions.assertEquals(2, results.size());
+    }
+
+    @SneakyThrows({JsonParseException.class, IOException.class})
+    private Pagination deserialisePagination(InputStream json) {
+        JsonParser parser = mapper.getFactory().createParser(json);
+        DeserializationContext context = spy(mapper.getDeserializationContext());
+        doReturn(true).when(context).isEnabled(any(MapperFeature.class));
+        parser.nextToken();
+        parser.nextToken();
+        parser.nextToken();
+        return deserializer.deserialize(parser, context);
     }
 
     private <V extends Projection, E> Page<V> search(Pagination pagination, Class<E> entityClass, Class<V> viewClass, SearchableRepository<V> repository) {
@@ -149,6 +168,10 @@ public class JPADynamicQueryBuilderSpringBootTest {
             sortList.forEach(sort -> orders.add(new Sort.Order(sort.getType().toDomainSort(), sort.getField())));
         }
         return PageRequest.of(pagination.getPage(), pagination.getPageSize(), Sort.by(orders));
+    }
+
+    private InputStream getCustomerSearchJsonStream() {
+        return Customer.class.getClassLoader().getResourceAsStream("json/customer.search.json");
     }
 
 }
