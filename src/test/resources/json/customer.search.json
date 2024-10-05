@@ -1,0 +1,21 @@
+{
+  "pagination": {
+    "expression": {
+      "and": [
+        {
+          "name": "name",
+          "method": 3,
+          "val": "com"
+        }
+      ]
+    },
+    "number": 1,
+    "size": 2,
+    "sort": [
+      {
+        "field": "name",
+        "type": "ASC"
+      }
+    ]
+  }
+}

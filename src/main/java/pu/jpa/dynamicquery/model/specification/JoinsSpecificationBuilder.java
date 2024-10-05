@@ -17,10 +17,8 @@ import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.From;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
-import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Selection;
-import lombok.Getter;
 import pu.jpa.dynamicquery.annotation.SQLFunction;
 import pu.jpa.dynamicquery.annotation.SelectionIn;
 import pu.jpa.dynamicquery.api.Condition;
@@ -30,9 +28,8 @@ import pu.jpa.dynamicquery.api.Projection;
 /**
  * @author Plamen Uzunov
  */
-public class JoinTablesSelectionsBuilder<E, V extends Projection> {
+public class JoinsSpecificationBuilder<E, V extends Projection> {
 
-    @Getter
     private final Map<String, Join<Object, Object>> mappedJoins = new LinkedHashMap<>();
     private final Map<String, Class<?>> entities = new LinkedHashMap<>();
     private final Map<String, Selection<?>> selections = new HashMap<>();
@@ -42,16 +39,14 @@ public class JoinTablesSelectionsBuilder<E, V extends Projection> {
     private final Class<E> parentEntityType;
     private final Expression expression;
 
-    @Getter
-    private Predicate joinPredicate;
     private boolean aggregation = false;
     private final Map<String, jakarta.persistence.criteria.Expression<?>> grouping = new HashMap<>();
 
-    public JoinTablesSelectionsBuilder(Class<E> parentEntityType,
-                                       Expression expression,
-                                       Root<?> root,
-                                       CriteriaQuery<V> query,
-                                       CriteriaBuilder builder) {
+    public JoinsSpecificationBuilder(Class<E> parentEntityType,
+                                     Expression expression,
+                                     Root<?> root,
+                                     CriteriaQuery<V> query,
+                                     CriteriaBuilder builder) {
         this.root = root;
         this.query = query;
         this.builder = builder;
@@ -59,7 +54,7 @@ public class JoinTablesSelectionsBuilder<E, V extends Projection> {
         this.expression = expression;
     }
 
-    public void processTables() throws NoSuchFieldException {
+    public Map<String, Join<Object, Object>> buildJoins() throws NoSuchFieldException {
         boolean processSelections = query.getSelection() == null
             || query.getSelection().getJavaType() == null
             || Projection.class.isAssignableFrom(query.getSelection().getJavaType());
@@ -79,6 +74,7 @@ public class JoinTablesSelectionsBuilder<E, V extends Projection> {
         if (aggregation) {
             query.groupBy(new ArrayList<>(grouping.values()));
         }
+        return mappedJoins;
     }
 
     private void collectSelections(@Nonnull String name, @Nonnull Class<?> entityType, @Nonnull From<?, ?> currentJoin) {
@@ -92,16 +88,8 @@ public class JoinTablesSelectionsBuilder<E, V extends Projection> {
                         jakarta.persistence.criteria.Expression<?>[] exp = new jakarta.persistence.criteria.Expression<?>[sqlFunction.expressions().length];
                         if (sqlFunction.joins() != null) {
                             for (pu.jpa.dynamicquery.annotation.Join join : sqlFunction.joins()) {
-                                currentRoot = query.from(join.join());
                                 if (!join.attribute().isEmpty()) {
-                                    joinTable(join.attribute(), currentRoot, join.type());
-                                } else if (!join.joinColumn().isEmpty()) {
-                                    jakarta.persistence.criteria.Expression<?> joinExp = currentRoot.get(join.joinColumn());
-                                    if (joinPredicate == null) {
-                                        joinPredicate = builder.equal(root.get("id"), joinExp);
-                                    } else {
-                                        joinPredicate = builder.and(joinPredicate, builder.equal(root.get("id"), joinExp));
-                                    }
+                                    currentRoot = joinTable(join.attribute(), root, join.type());
                                 }
                             }
                         }
@@ -109,7 +97,7 @@ public class JoinTablesSelectionsBuilder<E, V extends Projection> {
                             for (int i = 0; i < sqlFunction.expressions().length; i++) {
                                 String expression = sqlFunction.expressions()[i];
                                 String[] paths = expression.split("\\.");
-                                exp[i] = tryToJoin(paths, currentRoot, currentJoin);
+                                exp[i] = tryToJoin(paths, currentRoot);
                                 grouping.put(paths[paths.length - 1], exp[i]);
                             }
                             jakarta.persistence.criteria.Expression<?> function = builder.function(sqlFunction.function(), sqlFunction.resultType(), exp);
@@ -221,47 +209,27 @@ public class JoinTablesSelectionsBuilder<E, V extends Projection> {
             .orElseThrow(() -> new IllegalArgumentException(String.format("No constructor found with the parameters count '%1$d' for the projection class: '%2$s'", selections.size(), viewClass.getName())));
     }
 
-    private jakarta.persistence.criteria.Expression<?> tryToJoin(String[] paths,
-                                                                 @Nonnull From<?, ?> currentRoot,
-                                                                 @Nonnull From<?, ?> currentJoin) {
+    private jakarta.persistence.criteria.Expression<?> tryToJoin(String[] paths, @Nonnull From<?, ?> currentJoin) {
         if (paths == null || paths.length == 0) {
             return null;
         }
         jakarta.persistence.criteria.Expression<?> currentExp;
         if (paths.length == 1) {
-            currentExp = tryToJoin(paths[0], currentRoot, currentJoin);
+            currentExp = currentJoin.get(paths[0]);
+        } else if (paths.length == 2) {
+            currentExp = currentJoin.get(paths[1]);
+            if (currentExp == null) {
+                From<?, ?> join = joinTable(paths[0], currentJoin);
+                currentExp = join.get(paths[1]);
+            }
         } else {
-            if (paths.length == 2) {
-                currentExp = tryToJoin(paths[1], currentRoot, currentJoin);
-                if (currentExp == null) {
-                    From<?, ?> join = joinTable(paths[1], currentJoin);
-                    currentExp = join.get(paths[1]);
-                }
-            } else {
-                currentExp = tryToJoin(paths[2], currentRoot, currentJoin);
-                if (currentExp == null) {
-                    From<?, ?> join = joinTable(paths[1], currentJoin);
-                    currentExp = join.get(paths[2]);
-                }
+            currentExp = currentJoin.get(paths[2]);
+            if (currentExp == null) {
+                From<?, ?> join = joinTable(paths[1], currentJoin);
+                currentExp = join.get(paths[2]);
             }
         }
         return currentExp;
-    }
-
-    private jakarta.persistence.criteria.Expression<?> tryToJoin(String joinColumn,
-                                                                 @Nonnull From<?, ?> currentRoot,
-                                                                 @Nonnull From<?, ?> currentJoin) {
-        jakarta.persistence.criteria.Expression<?> res = null;
-        try {
-            res = currentRoot.get(joinColumn);
-        } catch (IllegalArgumentException | IllegalStateException ex) {
-            try {
-                res = currentJoin.get(joinColumn);
-            } catch (IllegalArgumentException | IllegalStateException ex1) {
-                //empty
-            }
-        }
-        return res;
     }
 
 }

@@ -1,17 +1,13 @@
 spring:
-#  datasource:
-#    url: jdbc:tc:postgresql:postgres:jpadynamicqb
-##    url: jdbc:tc:postgresql:11.1:///integration-tests-db
-#    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
-#    jpa:
-#      hibernate:
-#        ddl-auto: create
   jpa:
     show-sql: true
     generate-ddl: true
     properties:
       hibernate:
         format_sql: true
+    hibernate:
+      naming-strategy: org.hibernate.cfg.ImprovedNamingStrategy
+
   sql:
     init:
       mode: always
