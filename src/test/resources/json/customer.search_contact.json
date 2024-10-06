@@ -4,8 +4,13 @@
       "and": [
         {
           "name": "name",
-          "method": 3,
-          "val": "com"
+          "method": 5,
+          "val": "ltd."
+        },
+        {
+          "name": "contacts.name",
+          "method": 4,
+          "val": "john"
         }
       ]
     },
