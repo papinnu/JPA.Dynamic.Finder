@@ -17,8 +17,8 @@ import pu.jpa.dynamicquery.api.Sortable;
 import pu.jpa.dynamicquery.util.ExpressionDeserializer;
 
 /**
- * This POJO represents the paginated result for the given criteria expression.
- * The result optionally can be sorted by the list of sorting fields with their sorting direction.
+ * Represents the pagination request with page number, page size, sort and filter criteria.
+ * The returned result optionally can be sorted by the list of sorting fields with their sorting direction.
  * @author Plamen Uzunov
  */
 @Getter

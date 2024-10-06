@@ -6,9 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
 import lombok.SneakyThrows;
@@ -20,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -36,9 +34,11 @@ import org.testcontainers.utility.TestcontainersConfiguration;
 import pu.jpa.dynamicquery.api.ComparisonOperator;
 import pu.jpa.dynamicquery.api.Expression;
 import pu.jpa.dynamicquery.api.LogicalOperator;
+import pu.jpa.dynamicquery.api.Pageable;
 import pu.jpa.dynamicquery.api.Projection;
 import pu.jpa.dynamicquery.api.SortType;
 import pu.jpa.dynamicquery.api.Sortable;
+import pu.jpa.dynamicquery.configuration.PageableConfig;
 import pu.jpa.dynamicquery.model.entity.Customer;
 import pu.jpa.dynamicquery.model.filter.CompositeExpression;
 import pu.jpa.dynamicquery.model.filter.Filter;
@@ -47,13 +47,9 @@ import pu.jpa.dynamicquery.model.filter.SimpleExpression;
 import pu.jpa.dynamicquery.model.projection.CustomerWithCount;
 import pu.jpa.dynamicquery.repository.CustomersRepository;
 import pu.jpa.dynamicquery.repository.SearchableRepository;
-import pu.jpa.dynamicquery.util.ExpressionDeserializer;
 import pu.jpa.dynamicquery.util.JpaQueryBuilder;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 
 /**
  * @author Plamen Uzunov
@@ -63,6 +59,7 @@ import static org.mockito.Mockito.spy;
 @ContextConfiguration(classes = {JpaQueryBuilder.class})
 @EnableAutoConfiguration
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@ComponentScan(basePackages = {"pu.jpa.dynamicquery.configuration", "pu.jpa.dynamicquery.util"})
 @TestPropertySource(locations = "classpath:application-tc.yml")
 @ActiveProfiles("tc")
 @Import(TestcontainersConfiguration.class)
@@ -70,12 +67,14 @@ import static org.mockito.Mockito.spy;
 public class JPADynamicQueryBuilderSpringBootTest {
 
     @Autowired
-    private JpaQueryBuilder jpaQueryBuilder;
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    PageableConfig pageableConfig;
+
+    private final JpaQueryBuilder jpaQueryBuilder;
 
     private final CustomersRepository customersRepository;
-
-    private ObjectMapper mapper;
-    private ExpressionDeserializer deserializer;
 
     @Container
     private static final PostgreSQLContainer<TestPostgreSqlContainer> postgresqlContainer =
@@ -90,8 +89,6 @@ public class JPADynamicQueryBuilderSpringBootTest {
     @Transactional
     @BeforeEach
     void setUp() {
-        mapper = new ObjectMapper();
-        deserializer = new ExpressionDeserializer();
     }
 
     @AfterEach
@@ -121,9 +118,10 @@ public class JPADynamicQueryBuilderSpringBootTest {
         SimpleExpression productNameExpression = new SimpleExpression(customerNameFilter);
         Expression expression = new CompositeExpression(LogicalOperator.AND, List.of(contactNameExpression, productNameExpression));
 
-        Pagination pagination = new Pagination();
-        pagination.setFilter(expression);
-        pagination.setSort(List.of(new pu.jpa.dynamicquery.model.filter.Sort("name", SortType.ASC)));
+        Pageable pagination = pageableConfig.pageableBuilder()
+            .withFilter(expression)
+            .withSort(List.of(new pu.jpa.dynamicquery.model.filter.Sort("name", SortType.ASC)))
+            .build();
 
         Page<CustomerWithCount> page = search(pagination, Customer.class, CustomerWithCount.class, customersRepository);
         List<CustomerWithCount> results = page.getContent();
@@ -133,7 +131,29 @@ public class JPADynamicQueryBuilderSpringBootTest {
     @Transactional
     @Test
     void testCustomersJsonPayload() {
-        Pagination pagination = deserialisePagination(getCustomerSearchJsonStream());
+        Pageable pagination = deserialisePagination(getCustomerSearchJsonStream("customer.search.json"));
+        assertNotNull(pagination);
+
+        Page<CustomerWithCount> page = search(pagination, Customer.class, CustomerWithCount.class, customersRepository);
+        List<CustomerWithCount> results = page.getContent();
+        Assertions.assertEquals(5, results.size());
+    }
+
+    @Transactional
+    @Test
+    void testCustomersJsonPayloadPagination() {
+        Pageable pagination = deserialisePagination(getCustomerSearchJsonStream("customer.search_pagination.json"));
+        assertNotNull(pagination);
+
+        Page<CustomerWithCount> page = search(pagination, Customer.class, CustomerWithCount.class, customersRepository);
+        List<CustomerWithCount> results = page.getContent();
+        Assertions.assertEquals(2, results.size());
+    }
+
+    @Transactional
+    @Test
+    void testCustomersJsonPayloadContactsSearch() {
+        Pageable pagination = deserialisePagination(getCustomerSearchJsonStream("customer.search_contact.json"));
         assertNotNull(pagination);
 
         Page<CustomerWithCount> page = search(pagination, Customer.class, CustomerWithCount.class, customersRepository);
@@ -143,16 +163,10 @@ public class JPADynamicQueryBuilderSpringBootTest {
 
     @SneakyThrows({JsonParseException.class, IOException.class})
     private Pagination deserialisePagination(InputStream json) {
-        JsonParser parser = mapper.getFactory().createParser(json);
-        DeserializationContext context = spy(mapper.getDeserializationContext());
-        doReturn(true).when(context).isEnabled(any(MapperFeature.class));
-        parser.nextToken();
-        parser.nextToken();
-        parser.nextToken();
-        return deserializer.deserialize(parser, context);
+        return objectMapper.readValue(json, Pagination.class);
     }
 
-    private <V extends Projection, E> Page<V> search(Pagination pagination, Class<E> entityClass, Class<V> viewClass, SearchableRepository<V> repository) {
+    private <V extends Projection, E> Page<V> search(Pageable pagination, Class<E> entityClass, Class<V> viewClass, SearchableRepository<V> repository) {
         if (pagination.getFilter() != null) {
             return jpaQueryBuilder.getPagedData(entityClass, viewClass, pagination);
         } else {
@@ -161,7 +175,7 @@ public class JPADynamicQueryBuilderSpringBootTest {
         }
     }
 
-    private PageRequest buildPageRequest(Pagination pagination) {
+    private PageRequest buildPageRequest(Pageable pagination) {
         List<Sort.Order> orders = new ArrayList<>();
         List<Sortable> sortList = pagination.getSort();
         if (sortList != null && !sortList.isEmpty()) {
@@ -170,8 +184,8 @@ public class JPADynamicQueryBuilderSpringBootTest {
         return PageRequest.of(pagination.getPage(), pagination.getPageSize(), Sort.by(orders));
     }
 
-    private InputStream getCustomerSearchJsonStream() {
-        return Customer.class.getClassLoader().getResourceAsStream("json/customer.search.json");
+    private InputStream getCustomerSearchJsonStream(String payloadFileName) {
+        return JPADynamicQueryBuilderSpringBootTest.class.getClassLoader().getResourceAsStream("json/" + payloadFileName);
     }
 
 }
