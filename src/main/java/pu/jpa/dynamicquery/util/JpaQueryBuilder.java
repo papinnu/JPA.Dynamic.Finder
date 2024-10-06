@@ -11,21 +11,17 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
-import lombok.Getter;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.query.QueryUtils;
 import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
-import pu.jpa.dynamicquery.api.Sortable;
-import pu.jpa.dynamicquery.configuration.PaginationRecord;
-import pu.jpa.dynamicquery.model.filter.Pagination;
+import pu.jpa.dynamicquery.api.Pageable;
 import pu.jpa.dynamicquery.api.Projection;
+import pu.jpa.dynamicquery.api.Sortable;
 import pu.jpa.dynamicquery.model.specification.SearchSpecification;
 
 /**
@@ -37,13 +33,9 @@ public class JpaQueryBuilder {
     @PersistenceContext
     private EntityManager entityManager;
 
-    @Autowired
-    @Getter
-    private PaginationRecord pagingRecord;
-
     public <E, R extends Projection> Page<R> getPagedData(@Nonnull Class<E> domainClass,
                                                           @Nonnull Class<R> resultClass,
-                                                          @Nonnull Pagination paging) {
+                                                          @Nonnull Pageable paging) {
         Specification<E> specification = new SearchSpecification<>(domainClass, paging.getFilter());
         PageRequest request = getPageRequest(paging);
         TypedQuery<R> typedQuery = getTypedQuery(specification, domainClass, resultClass, request.getSort());
@@ -52,7 +44,7 @@ public class JpaQueryBuilder {
 
     private <E, R extends Projection> Page<R> getPage(@Nonnull TypedQuery<R> query,
                                                      @Nonnull Class<E> domainClass,
-                                                     @Nonnull Pageable pageable,
+                                                     @Nonnull org.springframework.data.domain.Pageable pageable,
                                                      @Nonnull Specification<E> spec) {
         if (pageable.isPaged()) {
             query.setFirstResult((int) pageable.getOffset());
@@ -70,10 +62,7 @@ public class JpaQueryBuilder {
         return total;
     }
 
-    private PageRequest getPageRequest(Pagination paging) {
-        if (paging.getPageSize() <= 0) {
-            paging.setPageSize(pagingRecord.pageSize());
-        }
+    private PageRequest getPageRequest(Pageable paging) {
         List<Sortable> sortOrderMetadataList = paging.getSort();
         List<org.springframework.data.domain.Sort.Order> orders = new ArrayList<>();
         if (!CollectionUtils.isEmpty(sortOrderMetadataList)) {

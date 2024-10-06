@@ -12,6 +12,7 @@ import pu.jpa.dynamicquery.api.Condition;
 import pu.jpa.dynamicquery.api.LogicalOperator;
 import pu.jpa.dynamicquery.api.SortType;
 import pu.jpa.dynamicquery.api.Sortable;
+import pu.jpa.dynamicquery.configuration.PaginationRecord;
 import pu.jpa.dynamicquery.model.filter.AbstractExpression;
 import pu.jpa.dynamicquery.model.filter.CompositeExpression;
 import pu.jpa.dynamicquery.model.filter.ConditionObjectFactory;
@@ -24,6 +25,12 @@ import pu.jpa.dynamicquery.model.filter.Sort;
  */
 public class ExpressionDeserializer extends JsonDeserializer<Pagination> {
 
+    private final PaginationRecord paginationRecord;
+
+    public ExpressionDeserializer(PaginationRecord paginationRecord) {
+        this.paginationRecord = paginationRecord;
+    }
+
     @Override
     public Pagination deserialize (JsonParser parser, DeserializationContext context) throws IOException {
         JsonNode root = parser.getCodec().readTree(parser);
@@ -33,6 +40,8 @@ public class ExpressionDeserializer extends JsonDeserializer<Pagination> {
         }
         if (root.has("size")) {
             result.setPageSize(root.get("size").intValue());
+        } else {
+            result.setPageSize(paginationRecord.pageSize());
         }
         if (root.has("expression")) {
             JsonNode expressionNode = root.get("expression");
