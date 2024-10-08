@@ -4,13 +4,17 @@ plugins {
     id 'org.springframework.boot' version '3.3.2' apply false
     id 'io.spring.dependency-management' version '1.1.6'
     id 'com.adarshr.test-logger' version '3.2.0'
+    id 'maven-publish'
 }
 
+//def springVersion = "3.3.2"
 group = 'pu.jpa'
-version = '1.0.0'
+version = '1.0.2'
 java {
     sourceCompatibility = '17'
 }
+java.targetCompatibility = JavaVersion.VERSION_17
+java.sourceCompatibility = JavaVersion.VERSION_17
 
 configurations {
     compileOnly {
@@ -65,3 +69,26 @@ tasks.withType(JavaCompile).configureEach {
 test {
     useJUnitPlatform()
 }
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            groupId = 'pu.jpa'
+            artifactId = 'jpa-dynamic-finder'
+            version = version.toString()
+        }
+    }
+
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/papinnu/JPA.Dynamic.Finder")
+            credentials {
+                username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
+                password = project.findProperty("gpr.token") ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
+}
+
