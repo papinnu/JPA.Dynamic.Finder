@@ -19,6 +19,7 @@ import org.springframework.data.jpa.repository.query.QueryUtils;
 import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import pu.jpa.dynamicquery.api.Expression;
 import pu.jpa.dynamicquery.api.Pageable;
 import pu.jpa.dynamicquery.api.Projection;
 import pu.jpa.dynamicquery.api.Sortable;
@@ -40,6 +41,11 @@ public class JpaQueryBuilder {
         PageRequest request = getPageRequest(paging);
         TypedQuery<R> typedQuery = getTypedQuery(specification, domainClass, resultClass, request.getSort());
         return request.isUnpaged() ? new PageImpl<>(typedQuery.getResultList()) : getPage(typedQuery, domainClass, request, specification);
+    }
+
+    public <E> long getCount(@Nonnull Class<E> domainClass, @Nonnull final Expression expression) {
+        Specification<E> specification = new SearchSpecification<>(domainClass, expression);
+        return executeCountQuery(getCountQuery(specification, domainClass));
     }
 
     private <E, R extends Projection> Page<R> getPage(@Nonnull TypedQuery<R> query,
