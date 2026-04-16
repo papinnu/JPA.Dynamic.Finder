@@ -100,6 +100,7 @@ public class JPADynamicQueryBuilderSpringBootTest {
         registry.add("spring.datasource.url", postgresqlContainer::getJdbcUrl);
         registry.add("spring.datasource.username", postgresqlContainer::getUsername);
         registry.add("spring.datasource.password", postgresqlContainer::getPassword);
+        registry.add("spring.datasource.driver-class-name", postgresqlContainer::getDriverClassName);
     }
 
     @Transactional
